@@ -3,6 +3,7 @@
 A static two-page site for tracking staff leave. No build step and no server, so it runs as-is on GitHub Pages.
 
 - **`index.html`, the Leave list.** One row per leave: employee number, name, department, date from, date to, a calculated day count, and an **Approved** tick box. You can edit any cell in place, add or delete rows, and import an Excel or CSV file.
+- **`holidays.html`, the Holidays page.** Lists the company-wide public holidays for 2026 and 2027.
 - **`gantt.html`, the Gantt chart.** Shows one row per employee, grouped by department. You can filter by timeline (this month, next 30 or 90 days, any quarter, the full year, or custom dates, plus ◀ ▶ to step through), by department, by name, and by approval status. It marks weekends, public holidays and today, and adds a "people away" total for each day.
 
 ## Where the data lives
@@ -28,7 +29,17 @@ The source is the `Staff Leave tracker.xlsx` file, tab **Date Wise**. Only leave
 | Yuvraj Dingh | no department | "Not given" |
 | Nikhil Metha (Dec–Jan) | no department | Admin (from his later row) |
 
-Leave days are counted inclusively: the start and end dates are both leave days. Weekends are Sat/Sun.
+## Counting leave days
+
+Sunday is the weekly day off and Saturday is a working day. Leave is counted in calendar days: last day − first day + 1. If a leave **starts** on a Sunday or a public holiday, the count starts on the next working day. For example, a leave entered as 8–20 Nov 2026 (8 Nov is a Sunday, 9–10 Nov is Diwali) is counted from 11 Nov, which gives 10 days. Sundays and holidays that fall inside the leave still count.
+
+## Public holidays
+
+The `HOLIDAY_LIST` in `data.js` holds 2026 and 2027. Eid dates for 2027 are marked as tentative. You can see the whole list on the **Holidays** page (`holidays.html`).
+
+## Approval photos
+
+On the Leave list, 📷 opens the phone camera so you can photograph the signed approval form. On a laptop it opens a file picker instead. Attaching a photo ticks **Approved** automatically. Photos are shrunk and stored in **that browser only** (IndexedDB). They are never uploaded to GitHub, so they stay private, but other devices won't see them.
 
 ## Hosting
 

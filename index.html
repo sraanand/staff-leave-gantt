@@ -9,13 +9,14 @@
 <body>
 <div class="top">
   <span class="brand">Staff Leave</span>
-  <nav class="tabs"><a href="index.html" class="on">Leave list</a><a href="gantt.html">Gantt chart</a></nav>
+  <nav class="tabs"><a href="index.html" class="on">Leave list</a><a href="gantt.html">Gantt chart</a><a href="holidays.html">Holidays</a></nav>
   <span class="spacer"></span>
   <button class="icon-btn" id="themeBtn" title="Toggle light/dark">◐</button>
 </div>
 <main>
   <h1>Approved holidays</h1>
-  <p class="sub">Edit any cell directly. Tick the box to mark a leave approved; unticked rows show as pending on the chart. Changes save in this browser automatically.</p>
+  <p class="sub">Press <b>+</b> to add a leave, then type straight into the row. Tick the box to mark it approved, and use 📷 to photograph the signed approval form. Changes save in this browser automatically.<br>
+  Days are calendar days from the first working day to the last day. If leave starts on a Sunday or public holiday, the count starts on the next working day.</p>
 
   <div class="stats" id="stats"></div>
 
@@ -23,9 +24,10 @@
     <label class="field">Search<input id="q" type="search" placeholder="Name, ID or department"></label>
     <label class="field">Department<select id="fDept"><option value="">All departments</option></select></label>
     <label class="field">Status<select id="fStatus"><option value="">All</option><option value="1">Approved</option><option value="0">Pending</option></select></label>
-    <label class="field">Year<select id="fYear"><option value="2026">2026</option><option value="">All years</option></select></label>
+    <label class="field">Year<select id="fYear"><option value="2026">2026</option><option value="2027">2027</option><option value="">All years</option></select></label>
     <span class="spacer"></span>
-    <button class="btn primary" id="addBtn">+ Add leave</button>
+    <button class="btn primary" id="addBtn" title="Add a new leave line">+ Add leave</button>
+    <input type="file" id="cam" accept="image/*" capture="environment" hidden>
     <button class="btn" id="importBtn" title="Import an Excel or CSV file with ID, Name, Department, From, To">Import Excel/CSV</button>
     <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
     <button class="btn" id="csvBtn">Export CSV</button>
@@ -41,13 +43,26 @@
         <th data-k="dept" style="width:180px">Department</th>
         <th data-k="from" style="width:150px">Date from</th>
         <th data-k="to" style="width:150px">Date to</th>
-        <th data-k="days" style="width:60px">Days</th>
+        <th data-k="days" style="width:80px">Days</th>
         <th data-k="approved" style="width:120px">Approved</th>
+        <th data-k="doc" style="width:96px">Approval doc</th>
         <th style="width:40px"></th>
       </tr></thead>
       <tbody id="tb"></tbody>
+      <tfoot><tr><td colspan="9"><button class="add-row" id="addRow">＋ Add a new leave</button></td></tr></tfoot>
     </table>
   </div>
+  <button class="fab" id="fab" title="Add a new leave" aria-label="Add a new leave">＋</button>
+  <dialog id="docDlg">
+    <div class="dlg-head"><b id="docTitle"></b><button class="del" id="docClose" aria-label="Close">✕</button></div>
+    <img id="docImg" alt="Signed approval document">
+    <div class="dlg-foot">
+      <button class="btn" id="docReplace">📷 Retake / replace</button>
+      <a class="btn" id="docSave" download>Download</a>
+      <span class="spacer"></span>
+      <button class="btn danger" id="docRemove">Remove photo</button>
+    </div>
+  </dialog>
   <p class="note" id="foot"></p>
   <datalist id="depts"></datalist>
 </main>
@@ -95,7 +110,7 @@ function renderStats() {
   const inYr = rows.filter(r => !yr || ((r.from || "").slice(0, 4) <= yr && ((r.to || r.from || "").slice(0, 4) >= yr)));
   const ap = inYr.filter(r => r.approved).length;
   const today = toISO(new Date());
-  const now = new Set(rows.filter(r => r.approved && r.from <= today && r.to >= today).map(r => r.id)).size;
+  const now = new Set(rows.filter(r => { const st = effStart(r); return r.approved && st && st <= today && r.to >= today; }).map(r => r.id)).size;
   const bad = rows.filter(r => leaveDays(r) == null).length;
   $("stats").innerHTML =
     `<div class="stat"><b>${inYr.length}</b><span>Leave entries${yr ? " in " + yr : ""}</span></div>` +
@@ -116,11 +131,12 @@ function render() {
       <td><input class="cell" data-f="dept" value="${esc(r.dept)}" list="depts" placeholder="Department"></td>
       <td><input class="cell${badFrom ? " bad" : ""}" type="date" data-f="from" value="${esc(r.from)}"></td>
       <td><input class="cell${badTo ? " bad" : ""}" type="date" data-f="to" value="${esc(r.to)}" ${badTo ? 'title="Missing or before the start date"' : ""}></td>
-      <td class="days">${d ?? "—"}</td>
+      <td class="days">${d ?? "—"}${(() => { const s = effStart(r); return s && s !== r.from ? `<small title="Leave starts on a Sunday/holiday, so the count starts on the next working day">from ${fmt(s).replace(/ \d{4}$/, "")}</small>` : ""; })()}</td>
       <td><label class="ok-toggle"><input type="checkbox" data-f="approved" ${r.approved ? "checked" : ""}>${r.approved ? '<span class="y">Approved</span>' : '<span class="p">Pending</span>'}</label></td>
+      <td>${r.doc ? `<button class="doc-btn has" data-view title="View the signed approval">📄 View</button>` : `<button class="doc-btn" data-cam title="Take a photo of the signed approval form">📷 Add</button>`}</td>
       <td><button class="del" title="Delete this leave" data-del>✕</button></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="8" class="empty">No leave matches these filters.</td></tr>`;
+  }).join("") || `<tr><td colspan="9" class="empty">No leave matches these filters.</td></tr>`;
   $("foot").textContent = `Showing ${vis.length} of ${rows.length} entries. ` +
     (Store.isCustom() ? "You have local edits in this browser." : "Showing the original data from the Staff Leave tracker (Date Wise tab).");
   document.querySelectorAll("table.list th[data-k]").forEach(th => {
@@ -141,11 +157,52 @@ $("tb").addEventListener("change", e => {
   render();
   if (keepFocus) document.querySelector(`tr[data-u="${r.uid}"] [data-f="${keepFocus}"]`)?.focus();
 });
+let camFor = null, viewing = null;
 $("tb").addEventListener("click", e => {
-  if (!e.target.hasAttribute("data-del")) return;
-  const tr = e.target.closest("tr"); const r = rows.find(x => x.uid === tr.dataset.u);
+  const btn = e.target.closest("button"); if (!btn) return;
+  const tr = btn.closest("tr[data-u]"); if (!tr) return;
+  const r = rows.find(x => x.uid === tr.dataset.u);
+  if (btn.hasAttribute("data-cam")) { camFor = r; $("cam").click(); return; }
+  if (btn.hasAttribute("data-view")) { openDoc(r); return; }
+  if (!btn.hasAttribute("data-del")) return;
   if (!confirm(`Delete leave for ${r.name || "this row"} (${fmt(r.from)} – ${fmt(r.to)})?`)) return;
+  if (r.doc) Docs.del(r.uid).catch(() => {});
   rows = rows.filter(x => x !== r); persist(); render();
+});
+
+// ---- Approval photo ----
+$("cam").addEventListener("change", async e => {
+  const file = e.target.files[0]; e.target.value = "";
+  const r = camFor; camFor = null;
+  if (!file || !r) return;
+  try {
+    const blob = await shrinkImage(file);
+    await Docs.put(r.uid, blob);
+    r.doc = true; r.approved = true; // a signed form means it's approved
+    persist(); render();
+    if ($("docDlg").open) openDoc(r);
+  } catch (err) { alert("Couldn't save the photo: " + err.message); }
+});
+async function openDoc(r) {
+  viewing = r;
+  const blob = await Docs.get(r.uid).catch(() => null);
+  if (!blob) {
+    if (confirm("The photo for this leave isn't stored in this browser (it was taken on another device or the browser data was cleared). Take a new one?")) { camFor = r; $("cam").click(); }
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  $("docImg").src = url; $("docSave").href = url;
+  $("docSave").download = `approval-${(r.name || "leave").replace(/\W+/g, "-")}-${r.from}.jpg`;
+  $("docTitle").textContent = `${r.name} · ${fmt(r.from)} – ${fmt(r.to)}`;
+  if (!$("docDlg").open) $("docDlg").showModal();
+}
+$("docClose").addEventListener("click", () => $("docDlg").close());
+$("docDlg").addEventListener("click", e => { if (e.target === $("docDlg")) $("docDlg").close(); });
+$("docReplace").addEventListener("click", () => { camFor = viewing; $("cam").click(); });
+$("docRemove").addEventListener("click", async () => {
+  if (!viewing || !confirm("Remove the approval photo for this leave?")) return;
+  await Docs.del(viewing.uid).catch(() => {});
+  viewing.doc = false; persist(); $("docDlg").close(); render();
 });
 document.querySelector("table.list thead").addEventListener("click", e => {
   const k = e.target.dataset.k; if (!k) return;
@@ -153,12 +210,22 @@ document.querySelector("table.list thead").addEventListener("click", e => {
 });
 ["q", "fDept", "fStatus", "fYear"].forEach(id => $(id).addEventListener("input", render));
 
-$("addBtn").addEventListener("click", () => {
+function addLeave() {
   const today = toISO(new Date());
   rows.forEach(r => delete r._new);
   const r = { uid: uid(), id: "", name: "", dept: "", from: today, to: today, approved: false, _new: true };
   rows.unshift(r); persist(); render();
-  document.querySelector(`tr[data-u="${r.uid}"] [data-f="id"]`)?.focus();
+  const el = document.querySelector(`tr[data-u="${r.uid}"] [data-f="id"]`);
+  el?.scrollIntoView({ block: "center", behavior: "smooth" }); el?.focus({ preventScroll: true });
+}
+["addBtn", "addRow", "fab"].forEach(id => $(id).addEventListener("click", addLeave));
+// Typing an employee number fills name/department from earlier leaves
+$("tb").addEventListener("change", e => {
+  if (e.target.dataset.f !== "id") return;
+  const tr = e.target.closest("tr[data-u]"); const r = rows.find(x => x.uid === tr.dataset.u);
+  const prev = rows.filter(x => x !== r && x.id === r.id && x.name).sort((a, b) => a.from < b.from ? 1 : -1)[0];
+  if (prev && !r.name) { r.name = prev.name; if (!r.dept) r.dept = prev.dept; persist(); render();
+    document.querySelector(`tr[data-u="${r.uid}"] [data-f="from"]`)?.focus(); }
 });
 
 $("resetBtn").addEventListener("click", () => {
@@ -173,14 +240,14 @@ function download(name, text, type) {
 }
 $("csvBtn").addEventListener("click", () => {
   const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const out = [["Employee No", "Employee Name", "Department", "Date From", "Date To", "Days", "Approved"].join(",")]
-    .concat(rows.map(r => [r.id, r.name, r.dept, r.from, r.to, leaveDays(r) ?? "", r.approved ? "Yes" : "No"].map(q).join(",")));
+  const out = [["Employee No", "Employee Name", "Department", "Date From", "Date To", "Days", "Approved", "Approval doc"].join(",")]
+    .concat(rows.map(r => [r.id, r.name, r.dept, r.from, r.to, leaveDays(r) ?? "", r.approved ? "Yes" : "No", r.doc ? "Yes" : "No"].map(q).join(",")));
   download("staff-leave.csv", out.join("\n"), "text/csv");
 });
 $("jsBtn").addEventListener("click", () => {
-  const body = rows.map(r => "  " + JSON.stringify([r.id, r.name, r.dept, r.from, r.to, !!r.approved])).join(",\n");
-  const hol = JSON.stringify(window.HOLIDAYS, null, 2);
-  download("data.js", `// Exported from the Leave list page on ${toISO(new Date())}\nwindow.SEED_LEAVES = [\n${body}\n].map(([id, name, dept, from, to, approved]) => ({ id, name, dept, from, to, approved }));\n\nwindow.HOLIDAYS = ${hol};\n`, "text/javascript");
+  const body = rows.map(r => "  " + JSON.stringify([r.id, r.name, r.dept, r.from, r.to, !!r.approved, r.uid])).join(",\n");
+  const hol = window.HOLIDAY_LIST.map(h => "  " + JSON.stringify(h)).join(",\n");
+  download("data.js", `// Exported from the Leave list page on ${toISO(new Date())}\n// Approval photos are not included; they stay in the browser that took them.\nwindow.SEED_LEAVES = [\n${body}\n].map(([id, name, dept, from, to, approved, uid]) => ({ id, name, dept, from, to, approved, uid }));\n\nwindow.HOLIDAY_LIST = [\n${hol}\n];\n`, "text/javascript");
 });
 
 // ---- Import Excel / CSV ----

@@ -84,15 +84,22 @@ window.SEED_LEAVES = [
   ["5180","Prathmesh Kulkarni","Engineering","2026-11-11","2026-11-14",true],
   ["5002","Shabbir Kachwala","Management","2026-12-03","2026-12-08",true],
   ["1903","Sourabh Koley","Production","2026-12-07","2027-01-08",true]
-].map(([id, name, dept, from, to, approved]) => ({ id, name, dept, from, to, approved }));
+].map(([id, name, dept, from, to, approved, uid]) => ({ id, name, dept, from, to, approved, uid }));
 
-// From tab "2026 Holidays"
-window.HOLIDAYS = {
-  "2026-01-01": "New Year",
-  "2026-03-20": "Eid al-Fitr",
-  "2026-05-26": "Eid al-Adha",
-  "2026-10-20": "Dussehra",
-  "2026-11-09": "Diwali",
-  "2026-11-10": "Diwali",
-  "2026-12-02": "National Day"
-};
+// Company-wide public holidays. tentative: true = date may move (moon sighting).
+window.HOLIDAY_LIST = [
+  { date: "2026-01-01", name: "New Year" },
+  { date: "2026-03-20", name: "Eid al-Fitr" },
+  { date: "2026-05-26", name: "Eid al-Adha" },
+  { date: "2026-10-20", name: "Dussehra" },
+  { date: "2026-11-09", name: "Diwali" },
+  { date: "2026-11-10", name: "Diwali" },
+  { date: "2026-12-02", name: "National Day" },
+  { date: "2027-01-01", name: "New Year" },
+  { date: "2027-03-09", name: "Eid al-Fitr", tentative: true },
+  { date: "2027-05-17", name: "Eid al-Adha", tentative: true },
+  { date: "2027-10-09", name: "Dussehra" },
+  { date: "2027-10-29", name: "Diwali" },
+  { date: "2027-10-30", name: "Diwali" },
+  { date: "2027-12-02", name: "National Day" }
+];

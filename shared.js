@@ -10,7 +10,7 @@ const Store = {
     return Store.seed();
   },
   seed() {
-    return window.SEED_LEAVES.map((r, i) => ({ ...r, uid: "s" + i }));
+    return window.SEED_LEAVES.map((r, i) => ({ ...r, uid: r.uid || `s-${r.id}-${r.from}-${i}` }));
   },
   save(rows) {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(rows)); } catch (e) {}
@@ -33,7 +33,25 @@ const fromISO = s => { const [y, m, d] = s.split("-").map(Number); return new Da
 const validISO = s => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(fromISO(s));
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const daysBetween = (a, b) => Math.round((fromISO(b) - fromISO(a)) / 86400000);
-const leaveDays = r => (validISO(r.from) && validISO(r.to) && r.to >= r.from) ? daysBetween(r.from, r.to) + 1 : null;
+// Company calendar: Saturday is a working day, Sunday is off, plus public holidays.
+const HOLIDAYS = {};
+(window.HOLIDAY_LIST || []).forEach(h => { HOLIDAYS[h.date] = h.name + (h.tentative ? " (tentative)" : ""); });
+const isSunday = s => fromISO(s).getDay() === 0;
+const isOffDay = s => isSunday(s) || !!HOLIDAYS[s];
+const validRange = r => validISO(r.from) && validISO(r.to) && r.to >= r.from;
+// Leave starts on the first working day: Sundays/holidays at the very start don't count.
+function effStart(r) {
+  if (!validRange(r)) return null;
+  let d = r.from;
+  while (d <= r.to && isOffDay(d)) d = toISO(addDays(fromISO(d), 1));
+  return d <= r.to ? d : null;
+}
+// Calendar days: last day - (first working day) + 1
+const leaveDays = r => {
+  if (!validRange(r)) return null;
+  const s = effStart(r);
+  return s ? daysBetween(s, r.to) + 1 : 0;
+};
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const fmt = s => { if (!validISO(s)) return "—"; const d = fromISO(s); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 
@@ -85,6 +103,45 @@ function smartRange(fromRaw, toRaw) {
   }
   if (best) return { from: best.from, to: best.to };
   return { from: F[0] ? candISO(F[0]) || "" : "", to: "" };
+}
+
+// ---- Approval document photos (kept in this browser's IndexedDB) ----
+const Docs = (() => {
+  let dbp = null;
+  const db = () => dbp ||= new Promise((ok, fail) => {
+    const req = indexedDB.open("staffLeaveDocs", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("docs");
+    req.onsuccess = () => ok(req.result); req.onerror = () => fail(req.error);
+  });
+  const tx = async (mode, fn) => {
+    const d = await db();
+    return new Promise((ok, fail) => {
+      const t = d.transaction("docs", mode), r = fn(t.objectStore("docs"));
+      t.oncomplete = () => ok(r && r.result); t.onerror = () => fail(t.error);
+    });
+  };
+  return {
+    get: k => tx("readonly", s => s.get(k)),
+    put: (k, blob) => tx("readwrite", s => s.put(blob, k)),
+    del: k => tx("readwrite", s => s.delete(k))
+  };
+})();
+
+// Shrink a photo to max 1600px JPEG so storage stays small
+function shrinkImage(file, max = 1600) {
+  return new Promise((ok, fail) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? ok(b) : fail(new Error("Could not read that image")), "image/jpeg", 0.8);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); fail(new Error("Could not read that image")); };
+    img.src = url;
+  });
 }
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

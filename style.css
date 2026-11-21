@@ -67,7 +67,7 @@ h1 { font-size: 20px; margin: 0 0 4px; font-weight: 650; letter-spacing: -0.01em
 
 /* Leave list */
 .list-wrap { overflow-x: auto; }
-table.list { width: 100%; border-collapse: collapse; min-width: 820px; }
+table.list { width: 100%; border-collapse: collapse; min-width: 960px; }
 table.list th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 650; padding: 9px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); cursor: pointer; white-space: nowrap; }
 table.list td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 table.list tr:last-child td { border-bottom: 0; }
@@ -80,6 +80,36 @@ td.days { text-align: right; font-variant-numeric: tabular-nums; color: var(--mu
 .ok-toggle input { width: 18px; height: 18px; accent-color: var(--ok); cursor: pointer; }
 .ok-toggle .y { color: var(--ok); }
 .ok-toggle .p { color: var(--pending); }
+td.days small { display: block; font-size: 10.5px; color: var(--pending); white-space: nowrap; }
+table.list tfoot td { padding: 0; border: 0; }
+.add-row { width: 100%; border: 0; border-top: 1px dashed var(--line); background: none; color: var(--accent); font-weight: 650; padding: 12px; cursor: pointer; text-align: left; font-size: 14px; }
+.add-row:hover { background: var(--chip); }
+.fab { position: fixed; right: 20px; bottom: 20px; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 28px; line-height: 1; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.25); z-index: 30; }
+.fab:hover { filter: brightness(1.08); }
+.doc-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 4px 8px; cursor: pointer; font-size: 12.5px; white-space: nowrap; }
+.doc-btn.has { border-color: var(--ok); color: var(--ok); font-weight: 600; }
+dialog#docDlg { border: 1px solid var(--line); border-radius: 12px; padding: 0; background: var(--surface); color: var(--ink); width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
+dialog#docDlg::backdrop { background: rgba(0,0,0,.55); }
+.dlg-head, .dlg-foot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; }
+.dlg-head { border-bottom: 1px solid var(--line); justify-content: space-between; }
+.dlg-foot { border-top: 1px solid var(--line); flex-wrap: wrap; }
+.dlg-foot a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
+#docImg { display: block; max-width: 100%; max-height: calc(100vh - 160px); margin: 0 auto; object-fit: contain; background: var(--chip); }
+/* Holidays page */
+.hol-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.hol-card h2 { font-size: 16px; margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; }
+.hol-card h2 span { font-size: 12px; color: var(--muted); font-weight: 500; }
+.hol-row { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.hol-row:last-child { border-bottom: 0; }
+.hol-row.past { opacity: .5; }
+.hol-date { background: var(--hol); color: var(--hol-ink); border-radius: 8px; text-align: center; padding: 4px 0; line-height: 1.1; }
+.hol-date b { display: block; font-size: 18px; }
+.hol-date i { font-style: normal; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.hol-row .wd { color: var(--muted); font-size: 12.5px; }
+.tag { font-size: 11px; font-weight: 650; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+.tag.tent { background: color-mix(in srgb, var(--pending) 18%, transparent); color: var(--pending); }
+.tag.next { background: var(--accent); color: #fff; }
+.sw.hol-t { background: repeating-linear-gradient(135deg, var(--hol) 0 3px, var(--hol-edge) 3px 4px); border-color: var(--hol-edge); }
 .del { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: 6px; }
 .del:hover { color: var(--warn); background: var(--chip); }
 

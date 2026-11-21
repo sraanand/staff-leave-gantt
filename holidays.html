@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Company Holidays</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="top">
+  <span class="brand">Staff Leave</span>
+  <nav class="tabs"><a href="index.html">Leave list</a><a href="gantt.html">Gantt chart</a><a href="holidays.html" class="on">Holidays</a></nav>
+  <span class="spacer"></span>
+  <button class="icon-btn" id="themeBtn" title="Toggle light/dark">◐</button>
+</div>
+<main>
+  <h1>Company-wide holidays</h1>
+  <p class="sub">Sundays are off and Saturdays are working days. These public holidays are shaded on the Gantt chart. When a leave starts on one of them or on a Sunday, the day count starts on the next working day.</p>
+  <div class="stats" id="stats"></div>
+  <div class="hol-grid" id="grid"></div>
+  <p class="note">Eid dates depend on moon sighting and may move by a day or two. If a date changes, update it in <code>data.js</code>.</p>
+</main>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+initTheme();
+const TODAY = toISO(new Date());
+const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const list = window.HOLIDAY_LIST.slice().sort((a, b) => a.date < b.date ? -1 : 1);
+const next = list.find(h => h.date >= TODAY);
+const years = [...new Set(list.map(h => h.date.slice(0, 4)))];
+
+document.getElementById("stats").innerHTML =
+  (next ? `<div class="stat"><b>${daysBetween(TODAY, next.date)}</b><span>Days to ${esc(next.name)} · ${fmt(next.date)}</span></div>` : "") +
+  years.map(y => `<div class="stat"><b>${list.filter(h => h.date.startsWith(y)).length}</b><span>Holidays in ${y}</span></div>`).join("");
+
+document.getElementById("grid").innerHTML = years.map(y => {
+  const hs = list.filter(h => h.date.startsWith(y));
+  return `<section class="card hol-card"><h2>${y}<span>${hs.length} days</span></h2>` + hs.map(h => {
+    const d = fromISO(h.date), past = h.date < TODAY;
+    const sun = d.getDay() === 0 ? ' <span class="tag">Falls on a Sunday</span>' : "";
+    const tag = h === next ? '<span class="tag next">Next</span>' : h.tentative ? '<span class="tag tent">Tentative</span>' : "";
+    return `<div class="hol-row${past ? " past" : ""}">
+      <div class="hol-date"><b>${d.getDate()}</b><i>${MONTHS[d.getMonth()]}</i></div>
+      <div><div><b>${esc(h.name)}</b>${sun}</div><div class="wd">${WD[d.getDay()]}${h === next && h.tentative ? " · tentative" : ""}</div></div>
+      ${tag}
+    </div>`;
+  }).join("") + "</section>";
+}).join("");
+</script>
+</body>
+</html>
