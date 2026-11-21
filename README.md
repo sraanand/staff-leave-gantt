@@ -1,0 +1,35 @@
+# Staff Leave Gantt
+
+A static two-page site for tracking staff leave. No build step and no server, so it runs as-is on GitHub Pages.
+
+- **`index.html`, the Leave list.** One row per leave: employee number, name, department, date from, date to, a calculated day count, and an **Approved** tick box. You can edit any cell in place, add or delete rows, and import an Excel or CSV file.
+- **`gantt.html`, the Gantt chart.** Shows one row per employee, grouped by department. You can filter by timeline (this month, next 30 or 90 days, any quarter, the full year, or custom dates, plus ◀ ▶ to step through), by department, by name, and by approval status. It marks weekends, public holidays and today, and adds a "people away" total for each day.
+
+## Where the data lives
+
+- `data.js` holds the starting data and the 2026 public holidays.
+- Edits made on the Leave list are saved in **your own browser** (localStorage). Other people won't see them until you publish them: click **Download data.js**, replace `data.js` in this repo with the downloaded file, and commit. **Reset** throws away your browser's edits and reloads `data.js`.
+- **Import Excel/CSV** looks for columns called ID, Name, Department, From and To. If the file has a sheet named "Date Wise" it reads that one. Dates are parsed so that dd/mm, mm/dd, Excel serial numbers and year typos all come out right.
+
+## Where the starting data came from
+
+The source is the `Staff Leave tracker.xlsx` file, tab **Date Wise**. Only leaves that fall in 2026 were kept: 81 entries, 4 of which started in late Dec 2025. Dates were normalised as follows:
+
+| Row | Issue in sheet | Used |
+|---|---|---|
+| Ritesh Nikam, Kamlesh Kumar, Meet Shah (Nov), Ravi Ranjan | entered as mm/dd | read as mm/dd (e.g. 11/21/2026 → 21 Nov) |
+| Pratiksha Patil | to 30/11/**2016** | 30 Nov 2026 |
+| Omkar Badhe (Sep) | to 3/10/**2016** | 3 Oct 2026 |
+| Balaji Kamble (Oct) | to 19/10/**1026** | 19 Oct 2026 |
+| Jinal Patel (Aug) | to **80/80/2026** | left blank, flagged red, not drawn until fixed |
+| Nikhil Metha (Admin) | no dates | skipped |
+| Aman Singh | entered twice (16 Feb–7 Mar and 16 Feb–2 Mar) | later entry approved, earlier one set to pending |
+| Vineet Jaiswar (Apr) | ID 6069 | 5169 (his ID everywhere else) |
+| Yuvraj Dingh | no department | "Not given" |
+| Nikhil Metha (Dec–Jan) | no department | Admin (from his later row) |
+
+Leave days are counted inclusively: the start and end dates are both leave days. Weekends are Sat/Sun.
+
+## Hosting
+
+Go to Settings → Pages → Deploy from branch → `main` / root.

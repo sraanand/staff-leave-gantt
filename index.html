@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Staff Leave List</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="top">
+  <span class="brand">Staff Leave</span>
+  <nav class="tabs"><a href="index.html" class="on">Leave list</a><a href="gantt.html">Gantt chart</a></nav>
+  <span class="spacer"></span>
+  <button class="icon-btn" id="themeBtn" title="Toggle light/dark">◐</button>
+</div>
+<main>
+  <h1>Approved holidays</h1>
+  <p class="sub">Edit any cell directly. Tick the box to mark a leave approved; unticked rows show as pending on the chart. Changes save in this browser automatically.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="bar">
+    <label class="field">Search<input id="q" type="search" placeholder="Name, ID or department"></label>
+    <label class="field">Department<select id="fDept"><option value="">All departments</option></select></label>
+    <label class="field">Status<select id="fStatus"><option value="">All</option><option value="1">Approved</option><option value="0">Pending</option></select></label>
+    <label class="field">Year<select id="fYear"><option value="2026">2026</option><option value="">All years</option></select></label>
+    <span class="spacer"></span>
+    <button class="btn primary" id="addBtn">+ Add leave</button>
+    <button class="btn" id="importBtn" title="Import an Excel or CSV file with ID, Name, Department, From, To">Import Excel/CSV</button>
+    <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+    <button class="btn" id="csvBtn">Export CSV</button>
+    <button class="btn" id="jsBtn" title="Download a data.js to commit to the repo so everyone sees the same starting data">Download data.js</button>
+    <button class="btn danger" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="card list-wrap">
+    <table class="list">
+      <thead><tr>
+        <th data-k="id" style="width:90px">Emp. No.</th>
+        <th data-k="name">Employee name</th>
+        <th data-k="dept" style="width:180px">Department</th>
+        <th data-k="from" style="width:150px">Date from</th>
+        <th data-k="to" style="width:150px">Date to</th>
+        <th data-k="days" style="width:60px">Days</th>
+        <th data-k="approved" style="width:120px">Approved</th>
+        <th style="width:40px"></th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+  <p class="note" id="foot"></p>
+  <datalist id="depts"></datalist>
+</main>
+
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+initTheme();
+let rows = Store.load();
+let sortK = "from", sortDir = 1;
+const $ = id => document.getElementById(id);
+
+function persist() { Store.save(rows); renderStats(); }
+
+function deptList() { return [...new Set(rows.map(r => r.dept).filter(Boolean))].sort(); }
+
+function refreshDeptOptions() {
+  const cur = $("fDept").value;
+  $("fDept").innerHTML = `<option value="">All departments</option>` + deptList().map(d => `<option${d === cur ? " selected" : ""}>${esc(d)}</option>`).join("");
+  $("depts").innerHTML = deptList().map(d => `<option value="${esc(d)}">`).join("");
+}
+
+function visible() {
+  const q = $("q").value.trim().toLowerCase(), dep = $("fDept").value, st = $("fStatus").value, yr = $("fYear").value;
+  return rows.filter(r => {
+    if (q && !`${r.id} ${r.name} ${r.dept}`.toLowerCase().includes(q)) return false;
+    if (dep && r.dept !== dep) return false;
+    if (st && String(+r.approved) !== st) return false;
+    if (yr) {
+      const f = r.from || "", t = r.to || r.from || "";
+      if (r._new) return true;
+      if (!(f.slice(0, 4) <= yr && (t || f).slice(0, 4) >= yr)) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    if (a._new !== b._new) return a._new ? -1 : 1;
+    let x = sortK === "days" ? (leaveDays(a) ?? -1) : a[sortK], y = sortK === "days" ? (leaveDays(b) ?? -1) : b[sortK];
+    if (typeof x === "boolean") { x = +x; y = +y; }
+    return (x > y ? 1 : x < y ? -1 : 0) * sortDir || (a.name > b.name ? 1 : -1);
+  });
+}
+
+function renderStats() {
+  const yr = $("fYear").value;
+  const inYr = rows.filter(r => !yr || ((r.from || "").slice(0, 4) <= yr && ((r.to || r.from || "").slice(0, 4) >= yr)));
+  const ap = inYr.filter(r => r.approved).length;
+  const today = toISO(new Date());
+  const now = new Set(rows.filter(r => r.approved && r.from <= today && r.to >= today).map(r => r.id)).size;
+  const bad = rows.filter(r => leaveDays(r) == null).length;
+  $("stats").innerHTML =
+    `<div class="stat"><b>${inYr.length}</b><span>Leave entries${yr ? " in " + yr : ""}</span></div>` +
+    `<div class="stat"><b style="color:var(--ok)">${ap}</b><span>Approved</span></div>` +
+    `<div class="stat"><b style="color:var(--pending)">${inYr.length - ap}</b><span>Pending</span></div>` +
+    `<div class="stat"><b>${now}</b><span>On leave today</span></div>` +
+    (bad ? `<div class="stat"><b class="warn">${bad}</b><span>Need a date fix</span></div>` : "");
+}
+
+function render() {
+  const vis = visible();
+  $("tb").innerHTML = vis.map(r => {
+    const d = leaveDays(r);
+    const badFrom = !validISO(r.from), badTo = !validISO(r.to) || (validISO(r.from) && r.to < r.from);
+    return `<tr data-u="${r.uid}" class="${r.approved ? "" : "pend"}">
+      <td><input class="cell" data-f="id" value="${esc(r.id)}" placeholder="ID"></td>
+      <td><input class="cell" data-f="name" value="${esc(r.name)}" placeholder="Employee name"></td>
+      <td><input class="cell" data-f="dept" value="${esc(r.dept)}" list="depts" placeholder="Department"></td>
+      <td><input class="cell${badFrom ? " bad" : ""}" type="date" data-f="from" value="${esc(r.from)}"></td>
+      <td><input class="cell${badTo ? " bad" : ""}" type="date" data-f="to" value="${esc(r.to)}" ${badTo ? 'title="Missing or before the start date"' : ""}></td>
+      <td class="days">${d ?? "—"}</td>
+      <td><label class="ok-toggle"><input type="checkbox" data-f="approved" ${r.approved ? "checked" : ""}>${r.approved ? '<span class="y">Approved</span>' : '<span class="p">Pending</span>'}</label></td>
+      <td><button class="del" title="Delete this leave" data-del>✕</button></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="8" class="empty">No leave matches these filters.</td></tr>`;
+  $("foot").textContent = `Showing ${vis.length} of ${rows.length} entries. ` +
+    (Store.isCustom() ? "You have local edits in this browser." : "Showing the original data from the Staff Leave tracker (Date Wise tab).");
+  document.querySelectorAll("table.list th[data-k]").forEach(th => {
+    th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (th.dataset.k === sortK ? (sortDir > 0 ? " ▲" : " ▼") : "");
+  });
+  renderStats();
+}
+
+$("tb").addEventListener("change", e => {
+  const tr = e.target.closest("tr[data-u]"); if (!tr) return;
+  const r = rows.find(x => x.uid === tr.dataset.u); const f = e.target.dataset.f; if (!f) return;
+  r[f] = f === "approved" ? e.target.checked : e.target.value.trim();
+  if (f === "from" && validISO(r.from) && (!validISO(r.to) || r.to < r.from)) r.to = r.from;
+  persist();
+  if (f === "dept") refreshDeptOptions();
+  // re-render only the row so focus/typing flow isn't lost
+  const keepFocus = document.activeElement?.dataset?.f;
+  render();
+  if (keepFocus) document.querySelector(`tr[data-u="${r.uid}"] [data-f="${keepFocus}"]`)?.focus();
+});
+$("tb").addEventListener("click", e => {
+  if (!e.target.hasAttribute("data-del")) return;
+  const tr = e.target.closest("tr"); const r = rows.find(x => x.uid === tr.dataset.u);
+  if (!confirm(`Delete leave for ${r.name || "this row"} (${fmt(r.from)} – ${fmt(r.to)})?`)) return;
+  rows = rows.filter(x => x !== r); persist(); render();
+});
+document.querySelector("table.list thead").addEventListener("click", e => {
+  const k = e.target.dataset.k; if (!k) return;
+  sortDir = sortK === k ? -sortDir : 1; sortK = k; render();
+});
+["q", "fDept", "fStatus", "fYear"].forEach(id => $(id).addEventListener("input", render));
+
+$("addBtn").addEventListener("click", () => {
+  const today = toISO(new Date());
+  rows.forEach(r => delete r._new);
+  const r = { uid: uid(), id: "", name: "", dept: "", from: today, to: today, approved: false, _new: true };
+  rows.unshift(r); persist(); render();
+  document.querySelector(`tr[data-u="${r.uid}"] [data-f="id"]`)?.focus();
+});
+
+$("resetBtn").addEventListener("click", () => {
+  if (!confirm("Discard all changes made in this browser and go back to the original sheet data?")) return;
+  rows = Store.reset(); refreshDeptOptions(); render();
+});
+
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$("csvBtn").addEventListener("click", () => {
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const out = [["Employee No", "Employee Name", "Department", "Date From", "Date To", "Days", "Approved"].join(",")]
+    .concat(rows.map(r => [r.id, r.name, r.dept, r.from, r.to, leaveDays(r) ?? "", r.approved ? "Yes" : "No"].map(q).join(",")));
+  download("staff-leave.csv", out.join("\n"), "text/csv");
+});
+$("jsBtn").addEventListener("click", () => {
+  const body = rows.map(r => "  " + JSON.stringify([r.id, r.name, r.dept, r.from, r.to, !!r.approved])).join(",\n");
+  const hol = JSON.stringify(window.HOLIDAYS, null, 2);
+  download("data.js", `// Exported from the Leave list page on ${toISO(new Date())}\nwindow.SEED_LEAVES = [\n${body}\n].map(([id, name, dept, from, to, approved]) => ({ id, name, dept, from, to, approved }));\n\nwindow.HOLIDAYS = ${hol};\n`, "text/javascript");
+});
+
+// ---- Import Excel / CSV ----
+$("importBtn").addEventListener("click", () => $("file").click());
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload = ok; s.onerror = () => fail(new Error("Could not load the Excel reader"));
+    document.head.appendChild(s);
+  });
+}
+$("file").addEventListener("change", async e => {
+  const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+  try {
+    await loadXLSX();
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false, raw: true });
+    const ws = wb.Sheets[wb.SheetNames.includes("Date Wise") ? "Date Wise" : wb.SheetNames[0]];
+    const grid = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+    // find the header row
+    const hi = grid.findIndex(r => r.some(c => /name/i.test(c)) && r.some(c => /from/i.test(c)));
+    if (hi < 0) throw new Error("Couldn't find a header row with Name and From/To columns.");
+    const H = grid[hi].map(c => String(c).toLowerCase().trim());
+    const col = (...re) => H.findIndex(h => re.some(x => x.test(h)));
+    let cId = col(/^id$/, /emp.*(no|num|id)/, /^id\b/), cName = col(/name/), cDept = col(/dep/), cFrom = col(/from/, /start/), cTo = col(/^to$/, /\bto\b/, /end/), cAp = col(/approv/, /status/);
+    if (cDept < 0 && H[cName + 1] === "") cDept = cName + 1; // the tracker's unlabeled dept column
+    const out = [];
+    for (const r of grid.slice(hi + 1)) {
+      const name = String(r[cName] ?? "").trim(); if (!name) continue;
+      const { from, to } = smartRange(r[cFrom], r[cTo]);
+      if (!from && !to) continue;
+      const apRaw = cAp >= 0 ? String(r[cAp]).toLowerCase() : "yes";
+      out.push({ uid: uid(), id: String(r[cId] ?? "").trim(), name, dept: String(r[cDept] ?? "").trim() || "Not given", from, to,
+        approved: !/^(no|n|false|0|pending|rejected)$/.test(apRaw.trim()) });
+    }
+    if (!out.length) throw new Error("No leave rows found in that file.");
+    const replace = confirm(`Found ${out.length} leave rows in "${file.name}".\n\nOK = replace the current list\nCancel = add them to the current list`);
+    rows = replace ? out : rows.concat(out);
+    persist(); refreshDeptOptions(); $("fYear").value = ""; render();
+  } catch (err) { alert(err.message); }
+});
+
+refreshDeptOptions();
+render();
+</script>
+</body>
+</html>
