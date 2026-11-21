@@ -1,6 +1,6 @@
 # Staff Leave Gantt
 
-A static two-page site for tracking staff leave. No build step and no server, so it runs as-is on GitHub Pages.
+A static site for tracking staff leave. No build step and no server, so it runs as-is on GitHub Pages.
 
 - **`index.html`, the Leave list.** One row per leave: employee number, name, department, date from, date to, a calculated day count, and an **Approved** tick box. You can edit any cell in place, add or delete rows, and import an Excel or CSV file.
 - **`holidays.html`, the Holidays page.** Lists the company-wide public holidays for 2026 and 2027.
@@ -8,7 +8,7 @@ A static two-page site for tracking staff leave. No build step and no server, so
 
 ## Where the data lives
 
-- `data.js` holds the starting data and the 2026 public holidays.
+- `data.js` holds the starting data and the 2026–2027 public holidays.
 - Edits made on the Leave list are saved in **your own browser** (localStorage). Other people won't see them until you publish them: click **Download data.js**, replace `data.js` in this repo with the downloaded file, and commit. **Reset** throws away your browser's edits and reloads `data.js`.
 - **Import Excel/CSV** looks for columns called ID, Name, Department, From and To. If the file has a sheet named "Date Wise" it reads that one. Dates are parsed so that dd/mm, mm/dd, Excel serial numbers and year typos all come out right.
 
