@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Staff Leave Gantt</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div class="top">
   <span class="brand">Staff Leave</span>
-  <nav class="tabs"><a href="index.html">Leave list</a><a href="gantt.html" class="on">Gantt chart</a><a href="holidays.html">Holidays</a></nav>
+  <nav class="tabs"><a href="index.html">Leave</a><a href="gantt.html" class="on">Gantt</a><a href="holidays.html">Holidays</a></nav>
   <span class="spacer"></span>
+  <a class="icon-btn" href="data.html" title="Import, backup and reset" aria-label="Data settings">⚙</a>
   <button class="icon-btn" id="themeBtn" title="Toggle light/dark">◐</button>
 </div>
 <main>
@@ -56,8 +57,8 @@
   <p class="note" id="note"></p>
 </main>
 
-<script src="data.js"></script>
-<script src="shared.js"></script>
+<script src="data.js?v=3"></script>
+<script src="shared.js?v=3"></script>
 <script>
 initTheme();
 const $ = id => document.getElementById(id);

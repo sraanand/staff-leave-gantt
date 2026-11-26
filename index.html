@@ -2,296 +2,357 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Staff Leave List</title>
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Staff Leave</title>
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div class="top">
   <span class="brand">Staff Leave</span>
-  <nav class="tabs"><a href="index.html" class="on">Leave list</a><a href="gantt.html">Gantt chart</a><a href="holidays.html">Holidays</a></nav>
+  <nav class="tabs"><a href="index.html" class="on">Leave</a><a href="gantt.html">Gantt</a><a href="holidays.html">Holidays</a></nav>
   <span class="spacer"></span>
-  <button class="icon-btn" id="themeBtn" title="Toggle light/dark">◐</button>
+  <a class="icon-btn" href="data.html" title="Import, backup and reset" aria-label="Data settings">⚙</a>
+  <button class="icon-btn" id="themeBtn" title="Toggle light/dark" aria-label="Toggle light/dark">◐</button>
 </div>
-<main>
-  <h1>Approved holidays</h1>
-  <p class="sub">Press <b>+</b> to add a leave, then type straight into the row. Tick the box to mark it approved, and use 📷 to photograph the signed approval form. Changes save in this browser automatically.<br>
-  Days are calendar days from the first working day to the last day. If leave starts on a Sunday or public holiday, the count starts on the next working day.</p>
 
-  <div class="stats" id="stats"></div>
-
-  <div class="bar">
-    <label class="field">Search<input id="q" type="search" placeholder="Name, ID or department"></label>
-    <label class="field">Department<select id="fDept"><option value="">All departments</option></select></label>
-    <label class="field">Status<select id="fStatus"><option value="">All</option><option value="1">Approved</option><option value="0">Pending</option></select></label>
-    <label class="field">Year<select id="fYear"><option value="2026">2026</option><option value="2027">2027</option><option value="">All years</option></select></label>
-    <span class="spacer"></span>
-    <button class="btn primary" id="addBtn" title="Add a new leave line">+ Add leave</button>
-    <input type="file" id="cam" accept="image/*" capture="environment" hidden>
-    <button class="btn" id="importBtn" title="Import an Excel or CSV file with ID, Name, Department, From, To">Import Excel/CSV</button>
-    <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
-    <button class="btn" id="csvBtn">Export CSV</button>
-    <button class="btn" id="jsBtn" title="Download a data.js to commit to the repo so everyone sees the same starting data">Download data.js</button>
-    <button class="btn danger" id="resetBtn">Reset</button>
+<main class="narrow">
+  <div class="page-head">
+    <h1>Leave</h1>
+    <button class="btn primary desk-only" id="addBtn">+ New leave</button>
   </div>
 
-  <div class="card list-wrap">
-    <table class="list">
-      <thead><tr>
-        <th data-k="id" style="width:90px">Emp. No.</th>
-        <th data-k="name">Employee name</th>
-        <th data-k="dept" style="width:180px">Department</th>
-        <th data-k="from" style="width:150px">Date from</th>
-        <th data-k="to" style="width:150px">Date to</th>
-        <th data-k="days" style="width:80px">Days</th>
-        <th data-k="approved" style="width:120px">Approved</th>
-        <th data-k="doc" style="width:96px">Approval doc</th>
-        <th style="width:40px"></th>
-      </tr></thead>
-      <tbody id="tb"></tbody>
-      <tfoot><tr><td colspan="9"><button class="add-row" id="addRow">＋ Add a new leave</button></td></tr></tfoot>
-    </table>
+  <div class="seg" id="views" role="tablist">
+    <button data-v="today" role="tab"><span class="long">On leave </span><span class="cap">today</span> <span class="cnt" id="cToday"></span></button>
+    <button data-v="pending" role="tab">Pending<span class="long"> approval</span> <span class="cnt" id="cPending"></span></button>
+    <button data-v="all" role="tab">All<span class="long"> leave</span></button>
   </div>
-  <button class="fab" id="fab" title="Add a new leave" aria-label="Add a new leave">＋</button>
-  <dialog id="docDlg">
-    <div class="dlg-head"><b id="docTitle"></b><button class="del" id="docClose" aria-label="Close">✕</button></div>
-    <img id="docImg" alt="Signed approval document">
-    <div class="dlg-foot">
-      <button class="btn" id="docReplace">📷 Retake / replace</button>
-      <a class="btn" id="docSave" download>Download</a>
-      <span class="spacer"></span>
-      <button class="btn danger" id="docRemove">Remove photo</button>
+
+  <div class="filters">
+    <input type="search" id="q" placeholder="Search name or ID" aria-label="Search">
+    <select id="fDept" aria-label="Department"><option value="">All departments</option></select>
+    <select id="fRange" aria-label="Dates">
+      <option value="any">Any date</option>
+      <option value="month">This month</option>
+      <option value="next30">Next 30 days</option>
+      <option value="year">This year</option>
+      <option value="custom">Custom dates…</option>
+    </select>
+    <div class="custom-range" id="customRange" hidden>
+      <input type="date" id="rFrom" aria-label="From"><span class="muted">to</span><input type="date" id="rTo" aria-label="To">
     </div>
-  </dialog>
-  <p class="note" id="foot"></p>
-  <datalist id="depts"></datalist>
+  </div>
+
+  <p class="list-meta" id="meta"></p>
+  <div class="card items" id="items"></div>
 </main>
 
-<script src="data.js"></script>
-<script src="shared.js"></script>
+<button class="fab mob-only" id="fab" aria-label="New leave">＋</button>
+<div class="toast" id="toast" hidden></div>
+
+<!-- Leave entry form -->
+<dialog class="sheet" id="ed">
+  <form id="edForm" novalidate>
+    <div class="sheet-head">
+      <button type="button" class="link-btn" id="edCancel">Cancel</button>
+      <b id="edTitle">New leave</b>
+      <button type="submit" class="link-btn strong">Save</button>
+    </div>
+    <div class="sheet-body">
+      <div class="row2">
+        <label class="f"><span>Employee no.</span><input id="fId" inputmode="numeric" autocomplete="off" placeholder="e.g. 5150"></label>
+        <label class="f"><span>Department</span><input id="fDeptIn" list="deptList" autocomplete="off" placeholder="e.g. Production"></label>
+      </div>
+      <label class="f"><span>Employee name</span><input id="fName" list="nameList" autocomplete="off" placeholder="Start typing a name"></label>
+      <div class="row2">
+        <label class="f"><span>First day away</span><input type="date" id="fFrom"></label>
+        <label class="f"><span>Last day away</span><input type="date" id="fTo"></label>
+      </div>
+      <p class="days-line" id="daysLine"></p>
+
+      <label class="switch">
+        <input type="checkbox" id="fApproved">
+        <span class="track"></span>
+        <span>Approved by manager</span>
+      </label>
+
+      <div class="photo-box">
+        <span class="f-label">Signed approval form</span>
+        <div id="photoEmpty">
+          <button type="button" class="btn big" id="takePhoto">📷 Take photo</button>
+          <button type="button" class="link-btn" id="pickPhoto">or choose a file</button>
+        </div>
+        <div id="photoHas" hidden>
+          <img id="thumb" alt="Signed approval form" title="Tap to enlarge">
+          <div class="photo-actions">
+            <button type="button" class="btn" id="retake">Retake</button>
+            <button type="button" class="btn danger" id="rmPhoto">Remove</button>
+          </div>
+        </div>
+      </div>
+      <p class="err" id="err" hidden></p>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn danger" id="edDelete" hidden>Delete leave</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="edCancel2">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+  <input type="file" id="cam" accept="image/*" capture="environment" hidden>
+  <input type="file" id="pick" accept="image/*" hidden>
+</dialog>
+
+<dialog class="viewer" id="imgDlg">
+  <img id="bigImg" alt="Signed approval form">
+  <button class="btn" id="imgClose">Close</button>
+</dialog>
+
+<datalist id="deptList"></datalist>
+<datalist id="nameList"></datalist>
+
+<script src="data.js?v=3"></script>
+<script src="shared.js?v=3"></script>
 <script>
 initTheme();
-let rows = Store.load();
-let sortK = "from", sortDir = 1;
 const $ = id => document.getElementById(id);
+let rows = Store.load();
+const TODAY = toISO(new Date());
+const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const dShort = s => { const d = fromISO(s); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+const dDay = s => { const d = fromISO(s); return `${WD[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+const range = r => {
+  if (!validISO(r.from)) return "No dates";
+  if (!validISO(r.to)) return `${fmt(r.from)} – ?`;
+  return r.from.slice(0, 4) === r.to.slice(0, 4) ? `${dShort(r.from)} – ${fmt(r.to)}` : `${fmt(r.from)} – ${fmt(r.to)}`;
+};
+const nextWorkingDay = iso => { let d = addDays(fromISO(iso), 1); while (isOffDay(toISO(d))) d = addDays(d, 1); return toISO(d); };
+const awayToday = r => { const s = effStart(r); return !!s && s <= TODAY && r.to >= TODAY; };
 
-function persist() { Store.save(rows); renderStats(); }
+// ---- prefs ----
+const P = (() => { try { return JSON.parse(localStorage.getItem("staffLeave.listPrefs")) || {}; } catch (e) { return {}; } })();
+let view = P.view || "today";
+$("fRange").value = P.range || "year";
+const savePrefs = () => { try { localStorage.setItem("staffLeave.listPrefs", JSON.stringify({ view, range: $("fRange").value })); } catch (e) {} };
 
-function deptList() { return [...new Set(rows.map(r => r.dept).filter(Boolean))].sort(); }
-
-function refreshDeptOptions() {
-  const cur = $("fDept").value;
-  $("fDept").innerHTML = `<option value="">All departments</option>` + deptList().map(d => `<option${d === cur ? " selected" : ""}>${esc(d)}</option>`).join("");
-  $("depts").innerHTML = deptList().map(d => `<option value="${esc(d)}">`).join("");
-}
-
-function visible() {
-  const q = $("q").value.trim().toLowerCase(), dep = $("fDept").value, st = $("fStatus").value, yr = $("fYear").value;
-  return rows.filter(r => {
-    if (q && !`${r.id} ${r.name} ${r.dept}`.toLowerCase().includes(q)) return false;
-    if (dep && r.dept !== dep) return false;
-    if (st && String(+r.approved) !== st) return false;
-    if (yr) {
-      const f = r.from || "", t = r.to || r.from || "";
-      if (r._new) return true;
-      if (!(f.slice(0, 4) <= yr && (t || f).slice(0, 4) >= yr)) return false;
-    }
-    return true;
-  }).sort((a, b) => {
-    if (a._new !== b._new) return a._new ? -1 : 1;
-    let x = sortK === "days" ? (leaveDays(a) ?? -1) : a[sortK], y = sortK === "days" ? (leaveDays(b) ?? -1) : b[sortK];
-    if (typeof x === "boolean") { x = +x; y = +y; }
-    return (x > y ? 1 : x < y ? -1 : 0) * sortDir || (a.name > b.name ? 1 : -1);
+function directory() {
+  const byId = {}, byName = {};
+  rows.slice().sort((a, b) => (a.from || "") < (b.from || "") ? -1 : 1).forEach(r => {
+    if (r.id) byId[r.id] = { name: r.name, dept: r.dept };
+    if (r.name) byName[r.name.toLowerCase()] = { id: r.id, dept: r.dept, name: r.name };
   });
+  return { byId, byName };
+}
+function refreshLists() {
+  const depts = [...new Set(rows.map(r => r.dept).filter(Boolean))].sort();
+  const cur = $("fDept").value;
+  $("fDept").innerHTML = `<option value="">All departments</option>` + depts.map(d => `<option${d === cur ? " selected" : ""}>${esc(d)}</option>`).join("");
+  $("deptList").innerHTML = depts.map(d => `<option value="${esc(d)}">`).join("");
+  const { byName } = directory();
+  $("nameList").innerHTML = Object.values(byName).sort((a, b) => a.name.localeCompare(b.name))
+    .map(p => `<option value="${esc(p.name)}">${esc(p.id)} · ${esc(p.dept)}</option>`).join("");
 }
 
-function renderStats() {
-  const yr = $("fYear").value;
-  const inYr = rows.filter(r => !yr || ((r.from || "").slice(0, 4) <= yr && ((r.to || r.from || "").slice(0, 4) >= yr)));
-  const ap = inYr.filter(r => r.approved).length;
-  const today = toISO(new Date());
-  const now = new Set(rows.filter(r => { const st = effStart(r); return r.approved && st && st <= today && r.to >= today; }).map(r => r.id)).size;
-  const bad = rows.filter(r => leaveDays(r) == null).length;
-  $("stats").innerHTML =
-    `<div class="stat"><b>${inYr.length}</b><span>Leave entries${yr ? " in " + yr : ""}</span></div>` +
-    `<div class="stat"><b style="color:var(--ok)">${ap}</b><span>Approved</span></div>` +
-    `<div class="stat"><b style="color:var(--pending)">${inYr.length - ap}</b><span>Pending</span></div>` +
-    `<div class="stat"><b>${now}</b><span>On leave today</span></div>` +
-    (bad ? `<div class="stat"><b class="warn">${bad}</b><span>Need a date fix</span></div>` : "");
+function rangeBounds() {
+  const v = $("fRange").value, t = new Date();
+  if (v === "month") return [toISO(new Date(t.getFullYear(), t.getMonth(), 1)), toISO(new Date(t.getFullYear(), t.getMonth() + 1, 0))];
+  if (v === "next30") return [TODAY, toISO(addDays(t, 30))];
+  if (v === "year") return [`${t.getFullYear()}-01-01`, `${t.getFullYear()}-12-31`];
+  if (v === "custom" && validISO($("rFrom").value) && validISO($("rTo").value)) return [$("rFrom").value, $("rTo").value];
+  return null;
 }
 
 function render() {
-  const vis = visible();
-  $("tb").innerHTML = vis.map(r => {
-    const d = leaveDays(r);
-    const badFrom = !validISO(r.from), badTo = !validISO(r.to) || (validISO(r.from) && r.to < r.from);
-    return `<tr data-u="${r.uid}" class="${r.approved ? "" : "pend"}">
-      <td><input class="cell" data-f="id" value="${esc(r.id)}" placeholder="ID"></td>
-      <td><input class="cell" data-f="name" value="${esc(r.name)}" placeholder="Employee name"></td>
-      <td><input class="cell" data-f="dept" value="${esc(r.dept)}" list="depts" placeholder="Department"></td>
-      <td><input class="cell${badFrom ? " bad" : ""}" type="date" data-f="from" value="${esc(r.from)}"></td>
-      <td><input class="cell${badTo ? " bad" : ""}" type="date" data-f="to" value="${esc(r.to)}" ${badTo ? 'title="Missing or before the start date"' : ""}></td>
-      <td class="days">${d ?? "—"}${(() => { const s = effStart(r); return s && s !== r.from ? `<small title="Leave starts on a Sunday/holiday, so the count starts on the next working day">from ${fmt(s).replace(/ \d{4}$/, "")}</small>` : ""; })()}</td>
-      <td><label class="ok-toggle"><input type="checkbox" data-f="approved" ${r.approved ? "checked" : ""}>${r.approved ? '<span class="y">Approved</span>' : '<span class="p">Pending</span>'}</label></td>
-      <td>${r.doc ? `<button class="doc-btn has" data-view title="View the signed approval">📄 View</button>` : `<button class="doc-btn" data-cam title="Take a photo of the signed approval form">📷 Add</button>`}</td>
-      <td><button class="del" title="Delete this leave" data-del>✕</button></td>
-    </tr>`;
-  }).join("") || `<tr><td colspan="9" class="empty">No leave matches these filters.</td></tr>`;
-  $("foot").textContent = `Showing ${vis.length} of ${rows.length} entries. ` +
-    (Store.isCustom() ? "You have local edits in this browser." : "Showing the original data from the Staff Leave tracker (Date Wise tab).");
-  document.querySelectorAll("table.list th[data-k]").forEach(th => {
-    th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (th.dataset.k === sortK ? (sortDir > 0 ? " ▲" : " ▼") : "");
-  });
-  renderStats();
+  savePrefs();
+  document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.v === view));
+  const showRange = view === "all";
+  $("fRange").hidden = !showRange;
+  $("customRange").hidden = !(showRange && $("fRange").value === "custom");
+
+  const q = $("q").value.trim().toLowerCase(), dep = $("fDept").value;
+  const base = rows.filter(r => (!dep || r.dept === dep) && (!q || `${r.id} ${r.name}`.toLowerCase().includes(q)));
+  const today = base.filter(awayToday), pending = base.filter(r => !r.approved);
+  $("cToday").textContent = today.length;
+  $("cPending").textContent = pending.length;
+  $("cPending").classList.toggle("alert", pending.length > 0);
+
+  let list, meta;
+  if (view === "today") {
+    list = today.sort((a, b) => a.to < b.to ? -1 : 1);
+    meta = `${list.length} ${list.length === 1 ? "person" : "people"} away on ${dDay(TODAY)}`;
+  } else if (view === "pending") {
+    list = pending.sort((a, b) => (a.from || "") < (b.from || "") ? -1 : 1);
+    meta = list.length ? `${list.length} waiting for approval. Tap Approve, or open a leave to add the signed form.` : "";
+  } else {
+    const b = rangeBounds();
+    list = base.filter(r => !b || ((r.to || r.from || "") >= b[0] && (r.from || "") <= b[1]))
+      .sort((a, b) => (a.from || "") > (b.from || "") ? -1 : 1);
+    meta = `${list.length} leave ${list.length === 1 ? "entry" : "entries"}, newest first`;
+  }
+  $("meta").textContent = meta;
+
+  const empty = { today: "Nobody is on leave today.", pending: "Nothing waiting for approval. 👍", all: "No leave matches these filters." }[view];
+  $("items").innerHTML = list.map(item).join("") || `<div class="empty">${empty}</div>`;
 }
 
-$("tb").addEventListener("change", e => {
-  const tr = e.target.closest("tr[data-u]"); if (!tr) return;
-  const r = rows.find(x => x.uid === tr.dataset.u); const f = e.target.dataset.f; if (!f) return;
-  r[f] = f === "approved" ? e.target.checked : e.target.value.trim();
-  if (f === "from" && validISO(r.from) && (!validISO(r.to) || r.to < r.from)) r.to = r.from;
-  persist();
-  if (f === "dept") refreshDeptOptions();
-  // re-render only the row so focus/typing flow isn't lost
-  const keepFocus = document.activeElement?.dataset?.f;
-  render();
-  if (keepFocus) document.querySelector(`tr[data-u="${r.uid}"] [data-f="${keepFocus}"]`)?.focus();
-});
-let camFor = null, viewing = null;
-$("tb").addEventListener("click", e => {
-  const btn = e.target.closest("button"); if (!btn) return;
-  const tr = btn.closest("tr[data-u]"); if (!tr) return;
-  const r = rows.find(x => x.uid === tr.dataset.u);
-  if (btn.hasAttribute("data-cam")) { camFor = r; $("cam").click(); return; }
-  if (btn.hasAttribute("data-view")) { openDoc(r); return; }
-  if (!btn.hasAttribute("data-del")) return;
-  if (!confirm(`Delete leave for ${r.name || "this row"} (${fmt(r.from)} – ${fmt(r.to)})?`)) return;
-  if (r.doc) Docs.del(r.uid).catch(() => {});
-  rows = rows.filter(x => x !== r); persist(); render();
-});
+function item(r) {
+  const n = leaveDays(r), bad = n == null;
+  let when = range(r), sub = bad ? "" : `${n} day${n === 1 ? "" : "s"}`;
+  if (view === "today" && !bad) sub = `Back ${dDay(nextWorkingDay(r.to))}`;
+  const pill = bad ? `<span class="pill bad">Check dates</span>`
+    : r.approved ? `<span class="pill ok">Approved</span>` : `<button class="pill pend act" data-approve>Approve</button>`;
+  return `<div class="item" data-u="${r.uid}" tabindex="0">
+    <div class="who"><b>${esc(r.name || "(no name)")}</b><span>${esc([r.id, r.dept].filter(Boolean).join(" · "))}</span></div>
+    <div class="when"><b>${when}</b><span>${sub}${r.doc ? ' · <span title="Signed form attached">📄 form</span>' : ""}</span></div>
+    <div class="state">${r.approved || bad ? pill : `<span class="pill pend">Pending</span>${pill}`}</div>
+  </div>`;
+}
 
-// ---- Approval photo ----
-$("cam").addEventListener("change", async e => {
-  const file = e.target.files[0]; e.target.value = "";
-  const r = camFor; camFor = null;
-  if (!file || !r) return;
-  try {
-    const blob = await shrinkImage(file);
-    await Docs.put(r.uid, blob);
-    r.doc = true; r.approved = true; // a signed form means it's approved
-    persist(); render();
-    if ($("docDlg").open) openDoc(r);
-  } catch (err) { alert("Couldn't save the photo: " + err.message); }
-});
-async function openDoc(r) {
-  viewing = r;
-  const blob = await Docs.get(r.uid).catch(() => null);
-  if (!blob) {
-    if (confirm("The photo for this leave isn't stored in this browser (it was taken on another device or the browser data was cleared). Take a new one?")) { camFor = r; $("cam").click(); }
+// ---- list interactions ----
+$("views").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { view = b.dataset.v; render(); } });
+["q", "fDept", "fRange", "rFrom", "rTo"].forEach(id => $(id).addEventListener("input", render));
+$("items").addEventListener("click", e => {
+  const it = e.target.closest(".item"); if (!it) return;
+  const r = rows.find(x => x.uid === it.dataset.u);
+  if (e.target.closest("[data-approve]")) {
+    r.approved = true; Store.save(rows); render();
+    toast(`Approved: ${r.name}`, () => { r.approved = false; Store.save(rows); render(); });
     return;
   }
-  const url = URL.createObjectURL(blob);
-  $("docImg").src = url; $("docSave").href = url;
-  $("docSave").download = `approval-${(r.name || "leave").replace(/\W+/g, "-")}-${r.from}.jpg`;
-  $("docTitle").textContent = `${r.name} · ${fmt(r.from)} – ${fmt(r.to)}`;
-  if (!$("docDlg").open) $("docDlg").showModal();
-}
-$("docClose").addEventListener("click", () => $("docDlg").close());
-$("docDlg").addEventListener("click", e => { if (e.target === $("docDlg")) $("docDlg").close(); });
-$("docReplace").addEventListener("click", () => { camFor = viewing; $("cam").click(); });
-$("docRemove").addEventListener("click", async () => {
-  if (!viewing || !confirm("Remove the approval photo for this leave?")) return;
-  await Docs.del(viewing.uid).catch(() => {});
-  viewing.doc = false; persist(); $("docDlg").close(); render();
+  openEditor(r);
 });
-document.querySelector("table.list thead").addEventListener("click", e => {
-  const k = e.target.dataset.k; if (!k) return;
-  sortDir = sortK === k ? -sortDir : 1; sortK = k; render();
-});
-["q", "fDept", "fStatus", "fYear"].forEach(id => $(id).addEventListener("input", render));
+$("items").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList.contains("item")) e.target.click(); });
 
-function addLeave() {
-  const today = toISO(new Date());
-  rows.forEach(r => delete r._new);
-  const r = { uid: uid(), id: "", name: "", dept: "", from: today, to: today, approved: false, _new: true };
-  rows.unshift(r); persist(); render();
-  const el = document.querySelector(`tr[data-u="${r.uid}"] [data-f="id"]`);
-  el?.scrollIntoView({ block: "center", behavior: "smooth" }); el?.focus({ preventScroll: true });
+let toastT;
+function toast(msg, undo) {
+  const t = $("toast");
+  t.innerHTML = `<span>${esc(msg)}</span>` + (undo ? `<button class="link-btn strong">Undo</button>` : "");
+  t.hidden = false;
+  if (undo) t.querySelector("button").onclick = () => { undo(); t.hidden = true; };
+  clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 5000);
 }
-["addBtn", "addRow", "fab"].forEach(id => $(id).addEventListener("click", addLeave));
-// Typing an employee number fills name/department from earlier leaves
-$("tb").addEventListener("change", e => {
-  if (e.target.dataset.f !== "id") return;
-  const tr = e.target.closest("tr[data-u]"); const r = rows.find(x => x.uid === tr.dataset.u);
-  const prev = rows.filter(x => x !== r && x.id === r.id && x.name).sort((a, b) => a.from < b.from ? 1 : -1)[0];
-  if (prev && !r.name) { r.name = prev.name; if (!r.dept) r.dept = prev.dept; persist(); render();
-    document.querySelector(`tr[data-u="${r.uid}"] [data-f="from"]`)?.focus(); }
-});
 
-$("resetBtn").addEventListener("click", () => {
-  if (!confirm("Discard all changes made in this browser and go back to the original sheet data?")) return;
-  rows = Store.reset(); refreshDeptOptions(); render();
-});
+// ---- editor ----
+let editing = null, photo = null, dirty = false, autoFilled = {};
+const F = { id: $("fId"), name: $("fName"), dept: $("fDeptIn"), from: $("fFrom"), to: $("fTo"), approved: $("fApproved") };
 
-function download(name, text, type) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+async function openEditor(r) {
+  editing = r || null; dirty = false; autoFilled = {};
+  photo = { blob: null, url: null, changed: false };
+  $("edTitle").textContent = r ? "Edit leave" : "New leave";
+  $("edDelete").hidden = !r;
+  F.id.value = r?.id || ""; F.name.value = r?.name || ""; F.dept.value = r?.dept || "";
+  F.from.value = validISO(r?.from) ? r.from : ""; F.to.value = validISO(r?.to) ? r.to : "";
+  F.approved.checked = !!r?.approved;
+  $("err").hidden = true;
+  if (r?.doc) { const b = await Docs.get(r.uid).catch(() => null); if (b) setPhoto(b, false); }
+  showPhoto(); updateDays();
+  $("ed").showModal();
+  if (!r) setTimeout(() => F.id.focus(), 50);
 }
-$("csvBtn").addEventListener("click", () => {
-  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const out = [["Employee No", "Employee Name", "Department", "Date From", "Date To", "Days", "Approved", "Approval doc"].join(",")]
-    .concat(rows.map(r => [r.id, r.name, r.dept, r.from, r.to, leaveDays(r) ?? "", r.approved ? "Yes" : "No", r.doc ? "Yes" : "No"].map(q).join(",")));
-  download("staff-leave.csv", out.join("\n"), "text/csv");
-});
-$("jsBtn").addEventListener("click", () => {
-  const body = rows.map(r => "  " + JSON.stringify([r.id, r.name, r.dept, r.from, r.to, !!r.approved, r.uid])).join(",\n");
-  const hol = window.HOLIDAY_LIST.map(h => "  " + JSON.stringify(h)).join(",\n");
-  download("data.js", `// Exported from the Leave list page on ${toISO(new Date())}\n// Approval photos are not included; they stay in the browser that took them.\nwindow.SEED_LEAVES = [\n${body}\n].map(([id, name, dept, from, to, approved, uid]) => ({ id, name, dept, from, to, approved, uid }));\n\nwindow.HOLIDAY_LIST = [\n${hol}\n];\n`, "text/javascript");
-});
-
-// ---- Import Excel / CSV ----
-$("importBtn").addEventListener("click", () => $("file").click());
-function loadXLSX() {
-  if (window.XLSX) return Promise.resolve();
-  return new Promise((ok, fail) => {
-    const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
-    s.onload = ok; s.onerror = () => fail(new Error("Could not load the Excel reader"));
-    document.head.appendChild(s);
-  });
+function setPhoto(blob, changed = true) {
+  if (photo.url) URL.revokeObjectURL(photo.url);
+  photo = { blob, url: blob ? URL.createObjectURL(blob) : null, changed };
+  showPhoto();
 }
-$("file").addEventListener("change", async e => {
+function showPhoto() {
+  $("photoHas").hidden = !photo.blob; $("photoEmpty").hidden = !!photo.blob;
+  if (photo.blob) $("thumb").src = photo.url;
+}
+function updateDays() {
+  const from = F.from.value, to = F.to.value, el = $("daysLine");
+  el.className = "days-line";
+  if (!validISO(from) || !validISO(to)) { el.textContent = ""; return; }
+  if (to < from) { el.textContent = "The last day is before the first day."; el.classList.add("bad"); return; }
+  const r = { from, to }, n = leaveDays(r), s = effStart(r);
+  let txt = !s ? "All of these days are Sundays or holidays, so this is 0 days of leave."
+    : `${n} day${n === 1 ? "" : "s"} of leave` + (s !== from ? `, counted from ${dDay(s)} because it starts on a Sunday or holiday` : "");
+  const key = F.id.value.trim() || F.name.value.trim().toLowerCase();
+  const clash = rows.find(x => x !== editing && key && (x.id === key || x.name.toLowerCase() === key) && validISO(x.to) && x.from <= to && x.to >= from);
+  if (clash) txt += `. ⚠ This overlaps another leave for this person (${range(clash)}).`;
+  el.textContent = txt;
+}
+function closeEditor(force) {
+  if (!force && dirty && !confirm("Discard this entry? It hasn't been saved.")) return;
+  if (photo?.url) URL.revokeObjectURL(photo.url);
+  $("ed").close();
+}
+
+$("edForm").addEventListener("input", e => {
+  dirty = true;
+  if (e.target === F.from && validISO(F.from.value) && (!validISO(F.to.value) || F.to.value < F.from.value)) F.to.value = F.from.value;
+  if (e.target === F.id || e.target === F.name) autofill(e.target);
+  if (e.target !== F.approved) $("err").hidden = true;
+  updateDays();
+});
+function autofill(src) {
+  const { byId, byName } = directory();
+  if (src === F.id) {
+    const p = byId[F.id.value.trim()];
+    if (p) {
+      if (!F.name.value || autoFilled.name) { F.name.value = p.name; autoFilled.name = true; }
+      if (!F.dept.value || autoFilled.dept) { F.dept.value = p.dept; autoFilled.dept = true; }
+    }
+  } else {
+    autoFilled.name = false;
+    const p = byName[F.name.value.trim().toLowerCase()];
+    if (p) {
+      if (!F.id.value || autoFilled.id) { F.id.value = p.id; autoFilled.id = true; }
+      if (!F.dept.value || autoFilled.dept) { F.dept.value = p.dept; autoFilled.dept = true; }
+    }
+  }
+}
+
+$("edForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const v = { id: F.id.value.trim(), name: F.name.value.trim(), dept: F.dept.value.trim() || "Not given", from: F.from.value, to: F.to.value, approved: F.approved.checked };
+  const problem = !v.name ? "Enter the employee's name." : !validISO(v.from) ? "Pick the first day away." : !validISO(v.to) ? "Pick the last day away." : v.to < v.from ? "The last day is before the first day." : "";
+  if (problem) { $("err").textContent = problem; $("err").hidden = false; return; }
+  const r = editing || { uid: uid() };
+  Object.assign(r, v);
+  if (photo.changed) {
+    try {
+      if (photo.blob) { await Docs.put(r.uid, photo.blob); r.doc = true; }
+      else { await Docs.del(r.uid); r.doc = false; }
+    } catch (err) { alert("The photo couldn't be stored on this device: " + err.message); }
+  }
+  if (!editing) rows.push(r);
+  Store.save(rows); refreshLists();
+  closeEditor(true);
+  if (!editing && view === "today" && !awayToday(r)) view = "all";
+  render();
+  toast(editing ? `Saved changes for ${r.name}` : `Saved leave for ${r.name}`);
+});
+$("edDelete").addEventListener("click", () => {
+  const r = editing;
+  if (!confirm(`Delete ${r.name}'s leave (${range(r)})? This can't be undone.`)) return;
+  if (r.doc) Docs.del(r.uid).catch(() => {});
+  rows = rows.filter(x => x !== r); Store.save(rows); refreshLists();
+  closeEditor(true); render(); toast(`Deleted leave for ${r.name}`);
+});
+$("edCancel").addEventListener("click", () => closeEditor());
+$("edCancel2").addEventListener("click", () => closeEditor());
+$("ed").addEventListener("cancel", e => { e.preventDefault(); closeEditor(); });
+
+// photo
+async function onPhoto(e) {
   const file = e.target.files[0]; e.target.value = ""; if (!file) return;
   try {
-    await loadXLSX();
-    const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false, raw: true });
-    const ws = wb.Sheets[wb.SheetNames.includes("Date Wise") ? "Date Wise" : wb.SheetNames[0]];
-    const grid = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
-    // find the header row
-    const hi = grid.findIndex(r => r.some(c => /name/i.test(c)) && r.some(c => /from/i.test(c)));
-    if (hi < 0) throw new Error("Couldn't find a header row with Name and From/To columns.");
-    const H = grid[hi].map(c => String(c).toLowerCase().trim());
-    const col = (...re) => H.findIndex(h => re.some(x => x.test(h)));
-    let cId = col(/^id$/, /emp.*(no|num|id)/, /^id\b/), cName = col(/name/), cDept = col(/dep/), cFrom = col(/from/, /start/), cTo = col(/^to$/, /\bto\b/, /end/), cAp = col(/approv/, /status/);
-    if (cDept < 0 && H[cName + 1] === "") cDept = cName + 1; // the tracker's unlabeled dept column
-    const out = [];
-    for (const r of grid.slice(hi + 1)) {
-      const name = String(r[cName] ?? "").trim(); if (!name) continue;
-      const { from, to } = smartRange(r[cFrom], r[cTo]);
-      if (!from && !to) continue;
-      const apRaw = cAp >= 0 ? String(r[cAp]).toLowerCase() : "yes";
-      out.push({ uid: uid(), id: String(r[cId] ?? "").trim(), name, dept: String(r[cDept] ?? "").trim() || "Not given", from, to,
-        approved: !/^(no|n|false|0|pending|rejected)$/.test(apRaw.trim()) });
-    }
-    if (!out.length) throw new Error("No leave rows found in that file.");
-    const replace = confirm(`Found ${out.length} leave rows in "${file.name}".\n\nOK = replace the current list\nCancel = add them to the current list`);
-    rows = replace ? out : rows.concat(out);
-    persist(); refreshDeptOptions(); $("fYear").value = ""; render();
+    setPhoto(await shrinkImage(file)); dirty = true;
+    if (!F.approved.checked) { F.approved.checked = true; toast("Marked approved because a signed form was added"); }
   } catch (err) { alert(err.message); }
-});
+}
+$("cam").addEventListener("change", onPhoto);
+$("pick").addEventListener("change", onPhoto);
+$("takePhoto").addEventListener("click", () => $("cam").click());
+$("retake").addEventListener("click", () => $("cam").click());
+$("pickPhoto").addEventListener("click", () => $("pick").click());
+$("rmPhoto").addEventListener("click", () => { setPhoto(null); dirty = true; });
+$("thumb").addEventListener("click", () => { $("bigImg").src = photo.url; $("imgDlg").showModal(); });
+$("imgClose").addEventListener("click", () => $("imgDlg").close());
 
-refreshDeptOptions();
+["addBtn", "fab"].forEach(id => $(id).addEventListener("click", () => openEditor(null)));
+
+refreshLists();
 render();
 </script>
 </body>

@@ -2,14 +2,15 @@
 
 A static site for tracking staff leave. No build step and no server, so it runs as-is on GitHub Pages.
 
-- **`index.html`, the Leave list.** One row per leave: employee number, name, department, date from, date to, a calculated day count, and an **Approved** tick box. You can edit any cell in place, add or delete rows, and import an Excel or CSV file.
+- **`index.html`, the Leave page.** It has three views: **On leave today** (with each person's return date), **Pending approval** (with a one-tap Approve button) and **All leave** (with a date-range filter). Tap **+** to open the entry form, which has a Save button. Typing an employee number or name fills in the rest. Tap any leave to edit or delete it.
+- **`data.html`, Data tools (⚙).** Import from Excel, download a CSV backup, download `data.js` to publish, and reset this device.
 - **`holidays.html`, the Holidays page.** Lists the company-wide public holidays for 2026 and 2027.
 - **`gantt.html`, the Gantt chart.** Shows one row per employee, grouped by department. You can filter by timeline (this month, next 30 or 90 days, any quarter, the full year, or custom dates, plus ◀ ▶ to step through), by department, by name, and by approval status. It marks weekends, public holidays and today, and adds a "people away" total for each day.
 
 ## Where the data lives
 
 - `data.js` holds the starting data and the 2026–2027 public holidays.
-- Edits made on the Leave list are saved in **your own browser** (localStorage). Other people won't see them until you publish them: click **Download data.js**, replace `data.js` in this repo with the downloaded file, and commit. **Reset** throws away your browser's edits and reloads `data.js`.
+- Entries saved on the Leave page are stored in **your own browser** (localStorage). Other people won't see them until you publish them: click **Download data.js**, replace `data.js` in this repo with the downloaded file, and commit. **Reset** throws away your browser's edits and reloads `data.js`.
 - **Import Excel/CSV** looks for columns called ID, Name, Department, From and To. If the file has a sheet named "Date Wise" it reads that one. Dates are parsed so that dd/mm, mm/dd, Excel serial numbers and year typos all come out right.
 
 ## Where the starting data came from
@@ -39,7 +40,7 @@ The `HOLIDAY_LIST` in `data.js` holds 2026 and 2027. Eid dates for 2027 are mark
 
 ## Approval photos
 
-On the Leave list, 📷 opens the phone camera so you can photograph the signed approval form. On a laptop it opens a file picker instead. Attaching a photo ticks **Approved** automatically. Photos are shrunk and stored in **that browser only** (IndexedDB). They are never uploaded to GitHub, so they stay private, but other devices won't see them.
+In the leave form, 📷 opens the phone camera so you can photograph the signed approval form. On a laptop it opens a file picker instead. Attaching a photo ticks **Approved** automatically. Photos are shrunk and stored in **that browser only** (IndexedDB). They are never uploaded to GitHub, so they stay private, but other devices won't see them.
 
 ## Hosting
 

@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Company Holidays</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div class="top">
   <span class="brand">Staff Leave</span>
-  <nav class="tabs"><a href="index.html">Leave list</a><a href="gantt.html">Gantt chart</a><a href="holidays.html" class="on">Holidays</a></nav>
+  <nav class="tabs"><a href="index.html">Leave</a><a href="gantt.html">Gantt</a><a href="holidays.html" class="on">Holidays</a></nav>
   <span class="spacer"></span>
+  <a class="icon-btn" href="data.html" title="Import, backup and reset" aria-label="Data settings">⚙</a>
   <button class="icon-btn" id="themeBtn" title="Toggle light/dark">◐</button>
 </div>
 <main>
@@ -20,8 +21,8 @@
   <div class="hol-grid" id="grid"></div>
   <p class="note">Eid dates depend on moon sighting and may move by a day or two. If a date changes, update it in <code>data.js</code>.</p>
 </main>
-<script src="data.js"></script>
-<script src="shared.js"></script>
+<script src="data.js?v=3"></script>
+<script src="shared.js?v=3"></script>
 <script>
 initTheme();
 const TODAY = toISO(new Date());
